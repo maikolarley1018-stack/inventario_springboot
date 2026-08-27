@@ -1,5 +1,5 @@
 package co.edu.sena.inventario.model;
 
 public enum EstadoPedido {
-    PENDIENTE, CONFIRMADO, DESPACHADO, CANCELADO
+    PENDIENTE, EN_ESPERA_STOCK, CONFIRMADO, DESPACHADO, CANCELADO
 }
