@@ -1,0 +1,69 @@
+package co.edu.sena.inventario.controller;
+
+import co.edu.sena.inventario.model.Pedido;
+import co.edu.sena.inventario.service.PedidoService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.NoSuchElementException;
+
+@RestController
+@RequestMapping("/pedidos")
+public class PedidoController {
+
+    @Autowired
+    private PedidoService pedidoService;
+
+    @GetMapping
+    public ResponseEntity<List<Pedido>> obtenerTodos() {
+        return ResponseEntity.ok(pedidoService.getTodosPedidos());
+    }
+
+    @PostMapping
+    public ResponseEntity<?> crearPedido(@RequestBody Pedido pedido) {
+        try {
+            Pedido creado = pedidoService.crearPedido(pedido);
+            return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/confirmar")
+    public ResponseEntity<?> confirmarPedido(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.confirmarPedido(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelarPedido(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.cancelarPedido(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/despachar")
+    public ResponseEntity<?> despacharPedido(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.despacharPedido(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+}

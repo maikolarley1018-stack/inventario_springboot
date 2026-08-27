@@ -30,7 +30,7 @@ public class ProductoController {
         new Producto(1L, "Papa pastusa", "Tuberculos", 2500.0, 50),
         new Producto(2L, "Tomate", "Verduras", 3200.0, 30),
         new Producto(3L, "Fresa", "Frutas", 8500.0, 20),
-        new Producto(4L, "Zanahoria", "Verduras", 2800.0, 40),
+        new Producto(4L, "Zanahoria", "Verduras", 2800.0, 9),
         new Producto(5L, "Cebolla", "Verduras", 3000.0, 35)
     ));
 
