@@ -45,6 +45,28 @@ public class PedidoController {
         }
     }
 
+    @PutMapping("/{id}/confirmar-parcial")
+    public ResponseEntity<?> confirmarParcial(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.confirmarParcial(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/completar-stock")
+    public ResponseEntity<?> completarStock(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.completarPorReabastecimiento(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
     @PutMapping("/{id}/cancelar")
     public ResponseEntity<?> cancelarPedido(@PathVariable Long id) {
         try {
@@ -60,6 +82,19 @@ public class PedidoController {
     public ResponseEntity<?> despacharPedido(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(pedidoService.despacharPedido(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+    // ==========================================
+    // TAREA DEV 3: ENDPOINT BOSS FINAL
+    // ==========================================
+    @PutMapping("/{id}/reabastecer")
+    public ResponseEntity<?> completarPorReabastecimiento(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.completarPorReabastecimiento(id));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (IllegalStateException e) {
