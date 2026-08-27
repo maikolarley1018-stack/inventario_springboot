@@ -2,6 +2,8 @@ package co.edu.sena.inventario.service;
 
 import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
+import co.edu.sena.inventario.model.Producto;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -9,9 +11,10 @@ import java.util.*;
 @Service
 public class PedidoService {
 
+    @Autowired
+    private ProductoService productoService;
+
     private final List<Pedido> pedidos = new ArrayList<>();
-    private final Map<Long, Integer> inventario = new HashMap<>(Map.of(
-            1L, 50, 2L, 30, 3L, 20, 4L, 9, 5L, 35));
     private Long idCounter = 1L;
 
     public List<Pedido> getTodosPedidos() {
@@ -19,13 +22,29 @@ public class PedidoService {
     }
 
     public Pedido crearPedido(Pedido request) {
+        // 1. Validaciones de campos obligatorios
         if (request.getCliente() == null || request.getCliente().trim().isEmpty()) {
             throw new IllegalArgumentException("El cliente es obligatorio.");
+        }
+        if (request.getProductoId() == null) {
+            throw new IllegalArgumentException("El ID del producto es obligatorio.");
         }
         if (request.getCantidad() == null || request.getCantidad() <= 0) {
             throw new IllegalArgumentException("La cantidad debe ser mayor a cero.");
         }
+        if (request.getPrioridad() == null) {
+            throw new IllegalArgumentException("La prioridad es obligatoria.");
+        }
 
+        // 2. Obtiene el producto e inspecciona el stock actual
+        Producto producto = productoService.buscarPorId(request.getProductoId());
+
+        if (producto.getCantidad() < request.getCantidad()) {
+            throw new IllegalArgumentException("No se puede crear el pedido: Stock insuficiente ("
+                    + producto.getCantidad() + " disponibles, solicitadas: " + request.getCantidad() + ")");
+        }
+
+        // 3. Si hay suficiente stock, crea el pedido normalmente
         Pedido nuevo = new Pedido(idCounter++, request.getCliente(), request.getProductoId(),
                 request.getCantidad(), request.getPrioridad());
         pedidos.add(nuevo);
@@ -37,63 +56,12 @@ public class PedidoService {
         if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
             throw new IllegalStateException("Solo se pueden confirmar pedidos en estado PENDIENTE.");
         }
+
+        // Descuenta las unidades del inventario (lanza error si no hay stock)
+        productoService.descontarStock(pedido.getProductoId(), pedido.getCantidad());
+
         pedido.setEstado(EstadoPedido.CONFIRMADO);
         return pedido;
-    }
-
-    // BOSS FINAL - PARTE 1: Reserva parcial cuando no alcanza el stock
-    public Map<String, Object> confirmarParcial(Long id) {
-        Pedido pedido = buscarPorId(id);
-        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
-            throw new IllegalStateException("Solo un pedido PENDIENTE puede pasar a EN_ESPERA_STOCK.");
-        }
-
-        int stockActual = inventario.getOrDefault(pedido.getProductoId(), 0);
-        if (stockActual >= pedido.getCantidad()) {
-            throw new IllegalStateException("Hay stock suficiente: use PUT /pedidos/{id}/confirmar en su lugar.");
-        }
-        if (stockActual <= 0) {
-            throw new IllegalStateException("No hay unidades disponibles para reservar.");
-        }
-
-        int unidadesFaltantes = pedido.getCantidad() - stockActual;
-        inventario.put(pedido.getProductoId(), 0);
-        pedido.setEstado(EstadoPedido.EN_ESPERA_STOCK);
-        pedido.setUnidadesReservadas(stockActual);
-        pedido.setUnidadesFaltantes(unidadesFaltantes);
-
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("mensaje", "Stock reservado parcialmente. Pedido en EN_ESPERA_STOCK.");
-        respuesta.put("pedidoId", pedido.getId());
-        respuesta.put("estado", pedido.getEstado());
-        respuesta.put("unidadesReservadas", stockActual);
-        respuesta.put("unidadesFaltantes", unidadesFaltantes);
-        return respuesta;
-    }
-
-    // BOSS FINAL - PARTE 2: Completar pedido tras reabastecimiento
-    public Map<String, Object> completarPorReabastecimiento(Long id) {
-        Pedido pedido = buscarPorId(id);
-        if (pedido.getEstado() != EstadoPedido.EN_ESPERA_STOCK) {
-            throw new IllegalStateException("Solo un pedido EN_ESPERA_STOCK puede completarse por reabastecimiento.");
-        }
-
-        int unidadesFaltantes = pedido.getUnidadesFaltantes();
-        int stockActual = inventario.getOrDefault(pedido.getProductoId(), 0);
-        if (stockActual < unidadesFaltantes) {
-            throw new IllegalStateException("Aún no hay stock suficiente para completar el pedido. Faltan "
-                    + (unidadesFaltantes - stockActual) + " unidades.");
-        }
-
-        inventario.put(pedido.getProductoId(), stockActual - unidadesFaltantes);
-        pedido.setEstado(EstadoPedido.CONFIRMADO);
-        pedido.setUnidadesFaltantes(0);
-
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("mensaje", "Pedido completado y confirmado tras reabastecimiento.");
-        respuesta.put("pedidoId", pedido.getId());
-        respuesta.put("estado", pedido.getEstado());
-        return respuesta;
     }
 
     public Pedido cancelarPedido(Long id) {
@@ -101,6 +69,12 @@ public class PedidoService {
         if (pedido.getEstado() == EstadoPedido.DESPACHADO || pedido.getEstado() == EstadoPedido.CANCELADO) {
             throw new IllegalStateException("No se puede cancelar un pedido " + pedido.getEstado());
         }
+
+        // Si ya estaba confirmado, devuelve el stock al inventario
+        if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
+            productoService.reponerStock(pedido.getProductoId(), pedido.getCantidad());
+        }
+
         pedido.setEstado(EstadoPedido.CANCELADO);
         return pedido;
     }
@@ -119,5 +93,40 @@ public class PedidoService {
                 .filter(p -> p.getId().equals(id))
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado con ID: " + id));
+    }
+
+    // ==========================================
+    // MÉTODOS DE SOPORTE PARA EL BOSS FINAL
+    // ==========================================
+
+    public Pedido confirmarParcial(Long id) {
+        Pedido pedido = buscarPorId(id);
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
+            throw new IllegalStateException("Solo se pueden confirmar parcialmente pedidos PENDIENTES.");
+        }
+
+        Producto producto = productoService.buscarPorId(pedido.getProductoId());
+        if (producto.getCantidad() <= 0) {
+            throw new IllegalStateException("No hay stock disponible para realizar una confirmación parcial.");
+        }
+
+        // Si el stock disponible alcanza o es menor, retiene el stock total existente
+        int unidadesAConfirmar = Math.min(producto.getCantidad(), pedido.getCantidad());
+        productoService.descontarStock(pedido.getProductoId(), unidadesAConfirmar);
+
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+        return pedido;
+    }
+
+    public Pedido completarPorReabastecimiento(Long id) {
+        Pedido pedido = buscarPorId(id);
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE && pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+            throw new IllegalStateException("Solo se pueden reabastecer pedidos PENDIENTES o CONFIRMADOS.");
+        }
+
+        // Intenta completar la reserva de stock si se surtió el producto
+        productoService.descontarStock(pedido.getProductoId(), pedido.getCantidad());
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+        return pedido;
     }
 }

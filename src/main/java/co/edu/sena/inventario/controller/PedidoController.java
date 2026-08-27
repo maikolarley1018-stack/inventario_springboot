@@ -22,12 +22,21 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.getTodosPedidos());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerPorId(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(pedidoService.buscarPorId(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> crearPedido(@RequestBody Pedido pedido) {
         try {
             Pedido creado = pedidoService.crearPedido(pedido);
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -56,17 +65,6 @@ public class PedidoController {
         }
     }
 
-    @PutMapping("/{id}/completar-stock")
-    public ResponseEntity<?> completarStock(@PathVariable Long id) {
-        try {
-            return ResponseEntity.ok(pedidoService.completarPorReabastecimiento(id));
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-    }
-
     @PutMapping("/{id}/cancelar")
     public ResponseEntity<?> cancelarPedido(@PathVariable Long id) {
         try {
@@ -88,10 +86,11 @@ public class PedidoController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
+
     // ==========================================
-    // TAREA DEV 3: ENDPOINT BOSS FINAL
+    // TAREA DEV 3: ENDPOINT BOSS FINAL (Soporta /reabastecer y /completar-stock)
     // ==========================================
-    @PutMapping("/{id}/reabastecer")
+    @PutMapping({ "/{id}/reabastecer", "/{id}/completar-stock" })
     public ResponseEntity<?> completarPorReabastecimiento(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(pedidoService.completarPorReabastecimiento(id));
