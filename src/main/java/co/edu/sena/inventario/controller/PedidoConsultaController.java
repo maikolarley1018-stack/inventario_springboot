@@ -30,7 +30,7 @@ public class PedidoConsultaController {
     }
 
     @GetMapping("/urgentes")
-    public ResponseEntity<List<Pedido>> getUrgentes() {
+    public ResponseEntity<List<Pedido>> obtenerUrgentes() {
         return ResponseEntity.ok(consultaService.obtenerUrgentes(pedidoService.getTodosPedidos()));
     }
 

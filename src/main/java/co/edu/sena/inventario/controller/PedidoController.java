@@ -87,9 +87,6 @@ public class PedidoController {
         }
     }
 
-    // ==========================================
-    // TAREA DEV 3: ENDPOINT BOSS FINAL (Soporta /reabastecer y /completar-stock)
-    // ==========================================
     @PutMapping({ "/{id}/reabastecer", "/{id}/completar-stock" })
     public ResponseEntity<?> completarPorReabastecimiento(@PathVariable Long id) {
         try {

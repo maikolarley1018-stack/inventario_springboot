@@ -2,6 +2,7 @@ package co.edu.sena.inventario.service;
 
 import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
+import co.edu.sena.inventario.model.Prioridad;
 import co.edu.sena.inventario.model.Producto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,15 +37,19 @@ public class PedidoService {
             throw new IllegalArgumentException("La prioridad es obligatoria.");
         }
 
-        // 2. Obtiene el producto e inspecciona el stock actual
-        Producto producto = productoService.buscarPorId(request.getProductoId());
-
-        if (producto.getCantidad() < request.getCantidad()) {
-            throw new IllegalArgumentException("No se puede crear el pedido: Stock insuficiente ("
-                    + producto.getCantidad() + " disponibles, solicitadas: " + request.getCantidad() + ")");
+        // 2. Validar que la prioridad exista
+        try {
+            Prioridad.valueOf(request.getPrioridad().toString().toUpperCase());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new IllegalArgumentException(
+                    "Prioridad no válida. Las opciones permitidas son: BAJA, MEDIA, ALTA, URGENTE.");
         }
 
-        // 3. Si hay suficiente stock, crea el pedido normalmente
+        // 3. Verifica existencias y DESCUENTA EL STOCK INMEDIATAMENTE al crear
+        // (descontarStock lanzará excepción si no hay suficiente cantidad disponible)
+        productoService.descontarStock(request.getProductoId(), request.getCantidad());
+
+        // 4. Crear e ingresar el pedido en estado PENDIENTE
         Pedido nuevo = new Pedido(idCounter++, request.getCliente(), request.getProductoId(),
                 request.getCantidad(), request.getPrioridad());
         pedidos.add(nuevo);
@@ -57,9 +62,7 @@ public class PedidoService {
             throw new IllegalStateException("Solo se pueden confirmar pedidos en estado PENDIENTE.");
         }
 
-        // Descuenta las unidades del inventario (lanza error si no hay stock)
-        productoService.descontarStock(pedido.getProductoId(), pedido.getCantidad());
-
+        // Como el stock ya fue apartado al crear el pedido, solo actualizamos el estado
         pedido.setEstado(EstadoPedido.CONFIRMADO);
         return pedido;
     }
@@ -70,10 +73,9 @@ public class PedidoService {
             throw new IllegalStateException("No se puede cancelar un pedido " + pedido.getEstado());
         }
 
-        // Si ya estaba confirmado, devuelve el stock al inventario
-        if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
-            productoService.reponerStock(pedido.getProductoId(), pedido.getCantidad());
-        }
+        // Como el stock fue reservado al crear el pedido, SIEMPRE liberamos/reponemos
+        // el stock al cancelar (siempre que esté en PENDIENTE o CONFIRMADO)
+        productoService.reponerStock(pedido.getProductoId(), pedido.getCantidad());
 
         pedido.setEstado(EstadoPedido.CANCELADO);
         return pedido;
@@ -96,6 +98,16 @@ public class PedidoService {
     }
 
     // ==========================================
+    // CONSULTAS Y CENTRO DE CONTROL
+    // ==========================================
+
+    public List<Pedido> obtenerPendientes() {
+        return pedidos.stream()
+                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE)
+                .toList();
+    }
+
+    // ==========================================
     // MÉTODOS DE SOPORTE PARA EL BOSS FINAL
     // ==========================================
 
@@ -104,15 +116,6 @@ public class PedidoService {
         if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
             throw new IllegalStateException("Solo se pueden confirmar parcialmente pedidos PENDIENTES.");
         }
-
-        Producto producto = productoService.buscarPorId(pedido.getProductoId());
-        if (producto.getCantidad() <= 0) {
-            throw new IllegalStateException("No hay stock disponible para realizar una confirmación parcial.");
-        }
-
-        // Si el stock disponible alcanza o es menor, retiene el stock total existente
-        int unidadesAConfirmar = Math.min(producto.getCantidad(), pedido.getCantidad());
-        productoService.descontarStock(pedido.getProductoId(), unidadesAConfirmar);
 
         pedido.setEstado(EstadoPedido.CONFIRMADO);
         return pedido;
@@ -124,8 +127,6 @@ public class PedidoService {
             throw new IllegalStateException("Solo se pueden reabastecer pedidos PENDIENTES o CONFIRMADOS.");
         }
 
-        // Intenta completar la reserva de stock si se surtió el producto
-        productoService.descontarStock(pedido.getProductoId(), pedido.getCantidad());
         pedido.setEstado(EstadoPedido.CONFIRMADO);
         return pedido;
     }

@@ -20,10 +20,11 @@ public class PedidoConsultaService {
     }
 
     // GET /pedidos/urgentes
-    public List<Pedido> obtenerUrgentes(List<Pedido> listaPedidos) {
-        return listaPedidos.stream()
+    public List<Pedido> obtenerUrgentes(List<Pedido> pedidos) {
+        return pedidos.stream()
                 .filter(p -> p.getPrioridad() == Prioridad.URGENTE)
-                .collect(Collectors.toList());
+                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE || p.getEstado() == EstadoPedido.CONFIRMADO)
+                .toList();
     }
 
     // GET /pedidos/estado?estado=CONFIRMADO
@@ -45,7 +46,8 @@ public class PedidoConsultaService {
         return new ResumenPedidosDTO(total, pendientes, confirmados, despachados, cancelados, urgentes);
     }
 
-    // GET /pedidos/siguiente (Algoritmo de prioridad: URGENTE > ALTA > MEDIA > BAJA, desempate por ID)
+    // GET /pedidos/siguiente (Algoritmo de prioridad: URGENTE > ALTA > MEDIA >
+    // BAJA, desempate por ID)
     public Pedido obtenerSiguiente(List<Pedido> listaPedidos) {
         List<Prioridad> ordenPrioridad = List.of(Prioridad.URGENTE, Prioridad.ALTA, Prioridad.MEDIA, Prioridad.BAJA);
 
@@ -56,7 +58,8 @@ public class PedidoConsultaService {
                 .orElseThrow(() -> new NoSuchElementException("No hay pedidos pendientes por atender."));
     }
 
-    // GET /pedidos/en-riesgo (Endpoint sorpresa: Detectar pedidos urgentes o de alta prioridad aún pendientes)
+    // GET /pedidos/en-riesgo (Endpoint sorpresa: Detectar pedidos urgentes o de
+    // alta prioridad aún pendientes)
     public List<Pedido> obtenerEnRiesgo(List<Pedido> listaPedidos) {
         return listaPedidos.stream()
                 .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE)
