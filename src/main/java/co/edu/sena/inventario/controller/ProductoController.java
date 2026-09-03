@@ -15,7 +15,32 @@ public class ProductoController {
     private ProductoService productoService;
 
     @GetMapping
-    public List<Producto> getProductos() {
+    public List<Producto> getTodos() {
         return productoService.getTodos();
+    }
+
+    @GetMapping("/{id}")
+    public Producto buscarPorId(@PathVariable Long id) {
+        return productoService.buscarPorId(id);
+    }
+
+    @PostMapping
+    public Producto guardar(@RequestBody Producto producto) {
+        return productoService.guardar(producto);
+    }
+
+    @GetMapping("/categoria/{categoria}")
+    public List<Producto> buscarPorCategoria(@PathVariable String categoria) {
+        return productoService.buscarPorCategoria(categoria);
+    }
+
+    @GetMapping("/buscar")
+    public List<Producto> buscarPorNombre(@RequestParam String nombre) {
+        return productoService.buscarPorNombre(nombre);
+    }
+
+    @GetMapping("/stock-bajo")
+    public List<Producto> buscarPorStockBajo(@RequestParam(defaultValue = "10") Integer limite) {
+        return productoService.buscarPorStockBajo(limite);
     }
 }
