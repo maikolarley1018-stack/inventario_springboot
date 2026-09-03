@@ -1,6 +1,8 @@
 package co.edu.sena.inventario.controller;
 
+import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
+import co.edu.sena.inventario.model.Prioridad;
 import co.edu.sena.inventario.service.PedidoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,28 @@ public class PedidoController {
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
+    }
+
+    // Endpoints Boss 2: Consultas derivadas
+    @GetMapping("/buscar/estado")
+    public ResponseEntity<List<Pedido>> getPorEstado(@RequestParam EstadoPedido estado) {
+        return ResponseEntity.ok(pedidoService.buscarPorEstado(estado));
+    }
+
+    @GetMapping("/buscar/prioridad")
+    public ResponseEntity<List<Pedido>> getPorPrioridad(@RequestParam Prioridad prioridad) {
+        return ResponseEntity.ok(pedidoService.buscarPorPrioridad(prioridad));
+    }
+
+    @GetMapping("/buscar/cliente")
+    public ResponseEntity<List<Pedido>> getPorCliente(@RequestParam String cliente) {
+        return ResponseEntity.ok(pedidoService.buscarPorCliente(cliente));
+    }
+
+    // Endpoint Boss 3: Consulta propia de negocio
+    @GetMapping("/urgentes-pendientes")
+    public ResponseEntity<List<Pedido>> getUrgentesPendientes() {
+        return ResponseEntity.ok(pedidoService.buscarUrgentesPendientes());
     }
 
     @PostMapping

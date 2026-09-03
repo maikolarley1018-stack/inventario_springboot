@@ -1,15 +1,29 @@
 package co.edu.sena.inventario.model;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "pedidos")
 public class Pedido {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String cliente;
     private Long productoId;
     private Integer cantidad;
+
+    @Enumerated(EnumType.STRING)
     private Prioridad prioridad;
+
+    @Enumerated(EnumType.STRING)
     private EstadoPedido estado;
+
     private Integer unidadesReservadas;
     private Integer unidadesFaltantes;
 
+    // Constructor vacío OBLIGATORIO para JPA
     public Pedido() {
     }
 

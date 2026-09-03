@@ -3,11 +3,12 @@ package co.edu.sena.inventario.service;
 import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
 import co.edu.sena.inventario.model.Prioridad;
-import co.edu.sena.inventario.model.Producto;
+import co.edu.sena.inventario.repository.PedidoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 @Service
 public class PedidoService {
@@ -15,11 +16,11 @@ public class PedidoService {
     @Autowired
     private ProductoService productoService;
 
-    private final List<Pedido> pedidos = new ArrayList<>();
-    private Long idCounter = 1L;
+    @Autowired
+    private PedidoRepository pedidoRepository;
 
     public List<Pedido> getTodosPedidos() {
-        return pedidos;
+        return pedidoRepository.findAll();
     }
 
     public Pedido crearPedido(Pedido request) {
@@ -45,15 +46,15 @@ public class PedidoService {
                     "Prioridad no válida. Las opciones permitidas son: BAJA, MEDIA, ALTA, URGENTE.");
         }
 
-        // 3. Verifica existencias y DESCUENTA EL STOCK INMEDIATAMENTE al crear
-        // (descontarStock lanzará excepción si no hay suficiente cantidad disponible)
+        // 3. Verifica existencias y DESCUENTA EL STOCK INMEDIATAMENTE
         productoService.descontarStock(request.getProductoId(), request.getCantidad());
 
-        // 4. Crear e ingresar el pedido en estado PENDIENTE
-        Pedido nuevo = new Pedido(idCounter++, request.getCliente(), request.getProductoId(),
-                request.getCantidad(), request.getPrioridad());
-        pedidos.add(nuevo);
-        return nuevo;
+        // 4. Crear e ingresar el pedido en estado PENDIENTE usando JPA
+        request.setEstado(EstadoPedido.PENDIENTE);
+        if (request.getUnidadesReservadas() == null) request.setUnidadesReservadas(0);
+        if (request.getUnidadesFaltantes() == null) request.setUnidadesFaltantes(0);
+
+        return pedidoRepository.save(request);
     }
 
     public Pedido confirmarPedido(Long id) {
@@ -62,9 +63,8 @@ public class PedidoService {
             throw new IllegalStateException("Solo se pueden confirmar pedidos en estado PENDIENTE.");
         }
 
-        // Como el stock ya fue apartado al crear el pedido, solo actualizamos el estado
         pedido.setEstado(EstadoPedido.CONFIRMADO);
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido cancelarPedido(Long id) {
@@ -73,12 +73,11 @@ public class PedidoService {
             throw new IllegalStateException("No se puede cancelar un pedido " + pedido.getEstado());
         }
 
-        // Como el stock fue reservado al crear el pedido, SIEMPRE liberamos/reponemos
-        // el stock al cancelar (siempre que esté en PENDIENTE o CONFIRMADO)
+        // Liberamos/reponemos el stock al cancelar
         productoService.reponerStock(pedido.getProductoId(), pedido.getCantidad());
 
         pedido.setEstado(EstadoPedido.CANCELADO);
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido despacharPedido(Long id) {
@@ -87,24 +86,36 @@ public class PedidoService {
             throw new IllegalStateException("Solo se pueden despachar pedidos en estado CONFIRMADO.");
         }
         pedido.setEstado(EstadoPedido.DESPACHADO);
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido buscarPorId(Long id) {
-        return pedidos.stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst()
+        return pedidoRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado con ID: " + id));
     }
 
     // ==========================================
-    // CONSULTAS Y CENTRO DE CONTROL
+    // CONSULTAS Y CENTRO DE CONTROL (Boss 2 y Boss 3)
     // ==========================================
 
     public List<Pedido> obtenerPendientes() {
-        return pedidos.stream()
-                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE)
-                .toList();
+        return pedidoRepository.findByEstado(EstadoPedido.PENDIENTE);
+    }
+
+    public List<Pedido> buscarPorEstado(EstadoPedido estado) {
+        return pedidoRepository.findByEstado(estado);
+    }
+
+    public List<Pedido> buscarPorPrioridad(Prioridad prioridad) {
+        return pedidoRepository.findByPrioridad(prioridad);
+    }
+
+    public List<Pedido> buscarPorCliente(String cliente) {
+        return pedidoRepository.findByClienteContainingIgnoreCase(cliente);
+    }
+
+    public List<Pedido> buscarUrgentesPendientes() {
+        return pedidoRepository.findByEstadoAndPrioridad(EstadoPedido.PENDIENTE, Prioridad.URGENTE);
     }
 
     // ==========================================
@@ -118,7 +129,7 @@ public class PedidoService {
         }
 
         pedido.setEstado(EstadoPedido.CONFIRMADO);
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido completarPorReabastecimiento(Long id) {
@@ -128,6 +139,6 @@ public class PedidoService {
         }
 
         pedido.setEstado(EstadoPedido.CONFIRMADO);
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 }
