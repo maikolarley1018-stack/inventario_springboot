@@ -1,5 +1,6 @@
 package co.edu.sena.inventario.service;
 
+import co.edu.sena.inventario.dto.ResumenPedidosDTO;
 import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
 import co.edu.sena.inventario.model.Prioridad;
@@ -7,8 +8,8 @@ import co.edu.sena.inventario.repository.PedidoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PedidoService {
@@ -23,7 +24,15 @@ public class PedidoService {
         return pedidoRepository.findAll();
     }
 
+    public Pedido buscarPorId(Long id) {
+        return pedidoRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado con ID: " + id));
+    }
+
     public Pedido crearPedido(Pedido request) {
+        // Garantizar que no se sobrescriban registros
+        request.setId(null);
+
         // 1. Validaciones de campos obligatorios
         if (request.getCliente() == null || request.getCliente().trim().isEmpty()) {
             throw new IllegalArgumentException("El cliente es obligatorio.");
@@ -38,18 +47,10 @@ public class PedidoService {
             throw new IllegalArgumentException("La prioridad es obligatoria.");
         }
 
-        // 2. Validar que la prioridad exista
-        try {
-            Prioridad.valueOf(request.getPrioridad().toString().toUpperCase());
-        } catch (IllegalArgumentException | NullPointerException e) {
-            throw new IllegalArgumentException(
-                    "Prioridad no válida. Las opciones permitidas son: BAJA, MEDIA, ALTA, URGENTE.");
-        }
-
-        // 3. Verifica existencias y DESCUENTA EL STOCK INMEDIATAMENTE
+        // 2. Descontar stock (Lanza IllegalStateException si no hay suficiente stock)
         productoService.descontarStock(request.getProductoId(), request.getCantidad());
 
-        // 4. Crear e ingresar el pedido en estado PENDIENTE usando JPA
+        // 3. Configurar estado e insertar
         request.setEstado(EstadoPedido.PENDIENTE);
         if (request.getUnidadesReservadas() == null) request.setUnidadesReservadas(0);
         if (request.getUnidadesFaltantes() == null) request.setUnidadesFaltantes(0);
@@ -62,7 +63,6 @@ public class PedidoService {
         if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
             throw new IllegalStateException("Solo se pueden confirmar pedidos en estado PENDIENTE.");
         }
-
         pedido.setEstado(EstadoPedido.CONFIRMADO);
         return pedidoRepository.save(pedido);
     }
@@ -73,7 +73,6 @@ public class PedidoService {
             throw new IllegalStateException("No se puede cancelar un pedido " + pedido.getEstado());
         }
 
-        // Liberamos/reponemos el stock al cancelar
         productoService.reponerStock(pedido.getProductoId(), pedido.getCantidad());
 
         pedido.setEstado(EstadoPedido.CANCELADO);
@@ -89,18 +88,27 @@ public class PedidoService {
         return pedidoRepository.save(pedido);
     }
 
-    public Pedido buscarPorId(Long id) {
-        return pedidoRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado con ID: " + id));
+    public Pedido confirmarParcial(Long id) {
+        Pedido pedido = buscarPorId(id);
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
+            throw new IllegalStateException("Solo se pueden confirmar parcialmente pedidos PENDIENTES.");
+        }
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+        return pedidoRepository.save(pedido);
+    }
+
+    public Pedido completarPorReabastecimiento(Long id) {
+        Pedido pedido = buscarPorId(id);
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE && pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+            throw new IllegalStateException("Solo se pueden reabastecer pedidos PENDIENTES o CONFIRMADOS.");
+        }
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+        return pedidoRepository.save(pedido);
     }
 
     // ==========================================
-    // CONSULTAS Y CENTRO DE CONTROL (Boss 2 y Boss 3)
+    // CONSULTAS
     // ==========================================
-
-    public List<Pedido> obtenerPendientes() {
-        return pedidoRepository.findByEstado(EstadoPedido.PENDIENTE);
-    }
 
     public List<Pedido> buscarPorEstado(EstadoPedido estado) {
         return pedidoRepository.findByEstado(estado);
@@ -114,31 +122,37 @@ public class PedidoService {
         return pedidoRepository.findByClienteContainingIgnoreCase(cliente);
     }
 
-    public List<Pedido> buscarUrgentesPendientes() {
-        return pedidoRepository.findByEstadoAndPrioridad(EstadoPedido.PENDIENTE, Prioridad.URGENTE);
+    public List<Pedido> buscarUrgentes() {
+        return pedidoRepository.findByPrioridad(Prioridad.URGENTE).stream()
+                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE || p.getEstado() == EstadoPedido.CONFIRMADO)
+                .collect(Collectors.toList());
     }
 
-    // ==========================================
-    // MÉTODOS DE SOPORTE PARA EL BOSS FINAL
-    // ==========================================
-
-    public Pedido confirmarParcial(Long id) {
-        Pedido pedido = buscarPorId(id);
-        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
-            throw new IllegalStateException("Solo se pueden confirmar parcialmente pedidos PENDIENTES.");
-        }
-
-        pedido.setEstado(EstadoPedido.CONFIRMADO);
-        return pedidoRepository.save(pedido);
+    public List<Pedido> buscarEnRiesgo() {
+        return pedidoRepository.findByEstadoAndPrioridadIn(
+                EstadoPedido.PENDIENTE, 
+                List.of(Prioridad.URGENTE, Prioridad.ALTA)
+        );
     }
 
-    public Pedido completarPorReabastecimiento(Long id) {
-        Pedido pedido = buscarPorId(id);
-        if (pedido.getEstado() != EstadoPedido.PENDIENTE && pedido.getEstado() != EstadoPedido.CONFIRMADO) {
-            throw new IllegalStateException("Solo se pueden reabastecer pedidos PENDIENTES o CONFIRMADOS.");
-        }
+    public ResumenPedidosDTO obtenerResumen() {
+        List<Pedido> todos = pedidoRepository.findAll();
+        long total = todos.size();
+        long pendientes = todos.stream().filter(p -> p.getEstado() == EstadoPedido.PENDIENTE).count();
+        long confirmados = todos.stream().filter(p -> p.getEstado() == EstadoPedido.CONFIRMADO).count();
+        long despachados = todos.stream().filter(p -> p.getEstado() == EstadoPedido.DESPACHADO).count();
+        long cancelados = todos.stream().filter(p -> p.getEstado() == EstadoPedido.CANCELADO).count();
+        long urgentes = todos.stream().filter(p -> p.getPrioridad() == Prioridad.URGENTE).count();
 
-        pedido.setEstado(EstadoPedido.CONFIRMADO);
-        return pedidoRepository.save(pedido);
+        return new ResumenPedidosDTO(total, pendientes, confirmados, despachados, cancelados, urgentes);
+    }
+
+    public Pedido obtenerSiguiente() {
+        List<Prioridad> ordenPrioridad = List.of(Prioridad.URGENTE, Prioridad.ALTA, Prioridad.MEDIA, Prioridad.BAJA);
+
+        return pedidoRepository.findByEstado(EstadoPedido.PENDIENTE).stream()
+                .min(Comparator.comparing((Pedido p) -> ordenPrioridad.indexOf(p.getPrioridad()))
+                        .thenComparing(Pedido::getId))
+                .orElseThrow(() -> new NoSuchElementException("No hay pedidos pendientes por atender."));
     }
 }

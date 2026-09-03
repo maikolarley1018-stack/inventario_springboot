@@ -3,6 +3,8 @@ package co.edu.sena.inventario.controller;
 import co.edu.sena.inventario.model.Producto;
 import co.edu.sena.inventario.service.ProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,8 +27,16 @@ public class ProductoController {
     }
 
     @PostMapping
-    public Producto guardar(@RequestBody Producto producto) {
-        return productoService.guardar(producto);
+    public ResponseEntity<Producto> guardar(@RequestBody Producto producto) {
+        producto.setId(null);
+        Producto nuevoProducto = productoService.guardar(producto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(nuevoProducto);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Producto> actualizar(@PathVariable Long id, @RequestBody Producto producto) {
+        Producto actualizado = productoService.actualizar(id, producto);
+        return ResponseEntity.ok(actualizado);
     }
 
     @GetMapping("/categoria/{categoria}")

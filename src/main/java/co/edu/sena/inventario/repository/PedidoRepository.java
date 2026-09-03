@@ -18,4 +18,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     // Boss 3: Consulta propia del equipo (Pedidos urgentes que siguen pendientes)
     List<Pedido> findByEstadoAndPrioridad(EstadoPedido estado, Prioridad prioridad);
+
+    // Soporte para pedidos en riesgo (recibe una lista de prioridades como URGENTE y ALTA)
+    List<Pedido> findByEstadoAndPrioridadIn(EstadoPedido estado, List<Prioridad> prioridades);
 }

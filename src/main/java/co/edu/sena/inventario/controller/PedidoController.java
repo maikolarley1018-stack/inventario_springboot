@@ -1,5 +1,6 @@
 package co.edu.sena.inventario.controller;
 
+import co.edu.sena.inventario.dto.ResumenPedidosDTO;
 import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
 import co.edu.sena.inventario.model.Prioridad;
@@ -31,28 +32,6 @@ public class PedidoController {
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-    }
-
-    // Endpoints Boss 2: Consultas derivadas
-    @GetMapping("/buscar/estado")
-    public ResponseEntity<List<Pedido>> getPorEstado(@RequestParam EstadoPedido estado) {
-        return ResponseEntity.ok(pedidoService.buscarPorEstado(estado));
-    }
-
-    @GetMapping("/buscar/prioridad")
-    public ResponseEntity<List<Pedido>> getPorPrioridad(@RequestParam Prioridad prioridad) {
-        return ResponseEntity.ok(pedidoService.buscarPorPrioridad(prioridad));
-    }
-
-    @GetMapping("/buscar/cliente")
-    public ResponseEntity<List<Pedido>> getPorCliente(@RequestParam String cliente) {
-        return ResponseEntity.ok(pedidoService.buscarPorCliente(cliente));
-    }
-
-    // Endpoint Boss 3: Consulta propia de negocio
-    @GetMapping("/urgentes-pendientes")
-    public ResponseEntity<List<Pedido>> getUrgentesPendientes() {
-        return ResponseEntity.ok(pedidoService.buscarUrgentesPendientes());
     }
 
     @PostMapping
@@ -119,6 +98,45 @@ public class PedidoController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/estado")
+    public ResponseEntity<List<Pedido>> getPorEstado(@RequestParam EstadoPedido estado) {
+        return ResponseEntity.ok(pedidoService.buscarPorEstado(estado));
+    }
+
+    @GetMapping("/prioridad")
+    public ResponseEntity<List<Pedido>> getPorPrioridad(@RequestParam Prioridad prioridad) {
+        return ResponseEntity.ok(pedidoService.buscarPorPrioridad(prioridad));
+    }
+
+    @GetMapping("/cliente")
+    public ResponseEntity<List<Pedido>> getPorCliente(@RequestParam String cliente) {
+        return ResponseEntity.ok(pedidoService.buscarPorCliente(cliente));
+    }
+
+    @GetMapping("/urgentes")
+    public ResponseEntity<List<Pedido>> getUrgentes() {
+        return ResponseEntity.ok(pedidoService.buscarUrgentes());
+    }
+
+    @GetMapping("/en-riesgo")
+    public ResponseEntity<List<Pedido>> getEnRiesgo() {
+        return ResponseEntity.ok(pedidoService.buscarEnRiesgo());
+    }
+
+    @GetMapping("/resumen")
+    public ResponseEntity<ResumenPedidosDTO> getResumen() {
+        return ResponseEntity.ok(pedidoService.obtenerResumen());
+    }
+
+    @GetMapping("/siguiente")
+    public ResponseEntity<?> getSiguiente() {
+        try {
+            return ResponseEntity.ok(pedidoService.obtenerSiguiente());
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
 }

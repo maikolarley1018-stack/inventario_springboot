@@ -15,7 +15,7 @@ public class ProductoService {
     @Autowired
     private ProductoRepository productoRepository;
 
-    // Cargar datos iniciales en la BD si esta vacia al iniciar la app
+    // Cargar datos iniciales en la BD si está vacía al iniciar la app
     @PostConstruct
     public void initData() {
         if (productoRepository.count() == 0) {
@@ -40,6 +40,15 @@ public class ProductoService {
 
     public Producto guardar(Producto producto) {
         return productoRepository.save(producto);
+    }
+
+    public Producto actualizar(Long id, Producto productoDetalles) {
+        Producto p = buscarPorId(id);
+        p.setNombre(productoDetalles.getNombre());
+        p.setCategoria(productoDetalles.getCategoria());
+        p.setPrecio(productoDetalles.getPrecio());
+        p.setCantidad(productoDetalles.getCantidad());
+        return productoRepository.save(p);
     }
 
     public void descontarStock(Long id, int cantidad) {
