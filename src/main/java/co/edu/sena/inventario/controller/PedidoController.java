@@ -46,6 +46,18 @@ public class PedidoController {
         }
     }
 
+@DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminarPedido(@PathVariable Long id) {
+        try {
+            pedidoService.eliminarPedido(id);
+            return ResponseEntity.ok("Pedido con ID " + id + " eliminado correctamente y el stock del producto ha sido restaurado.");
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
     @PutMapping("/{id}/confirmar")
     public ResponseEntity<?> confirmarPedido(@PathVariable Long id) {
         try {

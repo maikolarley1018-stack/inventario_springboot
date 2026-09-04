@@ -4,6 +4,7 @@ import co.edu.sena.inventario.dto.ResumenPedidosDTO;
 import co.edu.sena.inventario.model.EstadoPedido;
 import co.edu.sena.inventario.model.Pedido;
 import co.edu.sena.inventario.model.Prioridad;
+import org.springframework.transaction.annotation.Transactional;
 import co.edu.sena.inventario.repository.PedidoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -52,10 +53,25 @@ public class PedidoService {
 
         // 3. Configurar estado e insertar
         request.setEstado(EstadoPedido.PENDIENTE);
-        if (request.getUnidadesReservadas() == null) request.setUnidadesReservadas(0);
-        if (request.getUnidadesFaltantes() == null) request.setUnidadesFaltantes(0);
+        if (request.getUnidadesReservadas() == null)
+            request.setUnidadesReservadas(0);
+        if (request.getUnidadesFaltantes() == null)
+            request.setUnidadesFaltantes(0);
 
         return pedidoRepository.save(request);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void eliminarPedido(Long id) {
+        Pedido pedido = buscarPorId(id);
+
+        // Si el pedido no está CANCELADO, devolvemos el stock usando tu servicio de
+        // productos
+        if (pedido.getEstado() != EstadoPedido.CANCELADO) {
+            productoService.reponerStock(pedido.getProductoId(), pedido.getCantidad());
+        }
+
+        pedidoRepository.delete(pedido);
     }
 
     public Pedido confirmarPedido(Long id) {
@@ -130,9 +146,8 @@ public class PedidoService {
 
     public List<Pedido> buscarEnRiesgo() {
         return pedidoRepository.findByEstadoAndPrioridadIn(
-                EstadoPedido.PENDIENTE, 
-                List.of(Prioridad.URGENTE, Prioridad.ALTA)
-        );
+                EstadoPedido.PENDIENTE,
+                List.of(Prioridad.URGENTE, Prioridad.ALTA));
     }
 
     public ResumenPedidosDTO obtenerResumen() {

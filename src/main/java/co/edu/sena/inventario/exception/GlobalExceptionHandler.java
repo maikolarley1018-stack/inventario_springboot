@@ -41,15 +41,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> manejarRutaNoEncontrada(NoResourceFoundException e) {
         String mensaje = "La ruta consultada '" + e.getResourcePath() + "' no existe.\n\n" +
                 "Rutas disponibles en el sistema:\n" +
-                "- GET  /pedidos\n" +
-                "- GET  /pedidos/{id}\n" +
-                "- POST /pedidos\n" +
-                "- PUT  /pedidos/{id}/confirmar\n" +
-                "- PUT  /pedidos/{id}/cancelar\n" +
-                "- PUT  /pedidos/{id}/despachar\n" +
-                "- GET  /pedidos/urgentes\n" +
-                "- GET  /pedidos/resumen\n" +
-                "- GET  /pedidos/siguiente";
+                "--- PRODUCTOS ---\n" +
+                "- GET    /productos\n" +
+                "- GET    /productos/{id}\n" +
+                "- POST   /productos\n" +
+                "- PUT    /productos/{id}\n" +
+                "- DELETE /productos/{id}\n" +
+                "- GET    /productos/categoria/{categoria}\n" +
+                "- GET    /productos/buscar?nombre={nombre}\n" +
+                "- GET    /productos/stock-bajo?limite={limite}\n\n" +
+                "--- PEDIDOS ---\n" +
+                "- GET    /pedidos\n" +
+                "- GET    /pedidos/{id}\n" +
+                "- POST   /pedidos\n" +
+                "- PUT    /pedidos/{id}/confirmar\n" +
+                "- PUT    /pedidos/{id}/cancelar\n" +
+                "- PUT    /pedidos/{id}/despachar\n" +
+                "- DELETE /pedidos/{id}\n" +
+                "- GET    /pedidos/urgentes\n" +
+                "- GET    /pedidos/resumen\n" +
+                "- GET    /pedidos/siguiente";
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(mensaje);
     }

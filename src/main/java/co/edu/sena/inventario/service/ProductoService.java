@@ -51,6 +51,11 @@ public class ProductoService {
         return productoRepository.save(p);
     }
 
+    public void eliminar(Long id) {
+        Producto producto = buscarPorId(id); // Lanza NoSuchElementException si no existe
+        productoRepository.delete(producto);
+    }
+
     public void descontarStock(Long id, int cantidad) {
         Producto p = buscarPorId(id);
         if (p.getCantidad() < cantidad) {

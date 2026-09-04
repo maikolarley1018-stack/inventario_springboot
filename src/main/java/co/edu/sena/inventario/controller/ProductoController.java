@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/productos")
@@ -37,6 +38,16 @@ public class ProductoController {
     public ResponseEntity<Producto> actualizar(@PathVariable Long id, @RequestBody Producto producto) {
         Producto actualizado = productoService.actualizar(id, producto);
         return ResponseEntity.ok(actualizado);
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> eliminar(@PathVariable Long id) {
+        try {
+            productoService.eliminar(id);
+            return ResponseEntity.ok("Producto con ID " + id + " eliminado correctamente.");
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 
     @GetMapping("/categoria/{categoria}")
